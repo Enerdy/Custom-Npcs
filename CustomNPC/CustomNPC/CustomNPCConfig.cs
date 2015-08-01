@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using Newtonsoft.Json;
 
 namespace CustomNPC
 {
-    public class CustomNPCConfig
+    public class CustomNpcConfig
     {
         public Dictionary<string, WaveSet> WaveSets { get; set; }
         /// <summary>
@@ -15,10 +13,10 @@ namespace CustomNPC
         /// </summary>
         /// <param name="path">string path</param>
         /// <returns>ConfigFile object</returns>
-        public static CustomNPCConfig Read(string path)
+        public static CustomNpcConfig Read(string path)
         {
             if (!File.Exists(path))
-                return new CustomNPCConfig();
+                return new CustomNpcConfig();
             using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 return Read(fs);
@@ -30,12 +28,11 @@ namespace CustomNPC
         /// </summary>
         /// <param name="stream">stream</param>
         /// <returns>ConfigFile object</returns>
-        public static CustomNPCConfig Read(Stream stream)
+        public static CustomNpcConfig Read(Stream stream)
         {
             using (var sr = new StreamReader(stream))
             {
-                var serializerSettings = new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace };
-                var cf = JsonConvert.DeserializeObject<CustomNPCConfig>(sr.ReadToEnd());
+                var cf = JsonConvert.DeserializeObject<CustomNpcConfig>(sr.ReadToEnd());
 
                 if (ConfigRead != null)
                     ConfigRead(cf);
@@ -64,8 +61,9 @@ namespace CustomNPC
             //minion spawns
             
             List<SpawnMinion> SpawnMinions1 = new List<SpawnMinion>();        
-            SpawnMinion SpawnMinion1 = new SpawnMinion("customnpc id", 100, BiomeTypes.None, SpawnConditions.None, false, true);
-            SpawnMinion SpawnMinion2 = new SpawnMinion("customnpc id2", 100, BiomeTypes.None, SpawnConditions.None, false, true);
+            SpawnMinion SpawnMinion1;
+            SpawnMinion1 = new SpawnMinion("customnpc id", 100, BiomeTypes.None, SpawnConditions.None, false, true);
+            SpawnMinion SpawnMinion2 = new SpawnMinion("customnpc id2", 100, BiomeTypes.None, spawnconditions: SpawnConditions.None, isboss: false, unittocheckkillamount: true);
             SpawnMinions1.Add(SpawnMinion1);
             SpawnMinions1.Add(SpawnMinion2);
 
@@ -93,6 +91,6 @@ namespace CustomNPC
         /// <summary>
         /// On config read hook
         /// </summary>
-        public static Action<CustomNPCConfig> ConfigRead;
+        public static Action<CustomNpcConfig> ConfigRead;
     }
 }

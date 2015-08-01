@@ -48,6 +48,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DebugProjectileHostile.cs" />
     <Compile Include="DebugDefence.cs" />
     <Compile Include="DebugLootNPC.cs" />
     <Compile Include="DebugEventsNPC.cs" />

@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using CustomNPC;
 
 namespace DebugNPC
 {
-    public sealed class DebugLootNPCDefinition : CustomNPCDefinition
+    public sealed class DebugLootNpcDefinition : CustomNPCDefinition
     {
-        public DebugLootNPCDefinition()
+        public DebugLootNpcDefinition()
             //define base id type for Custom NPC
             : base(3)
         {

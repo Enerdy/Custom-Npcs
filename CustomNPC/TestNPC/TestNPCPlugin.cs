@@ -1,14 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using CustomNPC;
 using CustomNPC.EventSystem;
-using CustomNPC.EventSystem.Events;
 using CustomNPC.Plugins;
-using Terraria;
 
 namespace TestNPC
 {

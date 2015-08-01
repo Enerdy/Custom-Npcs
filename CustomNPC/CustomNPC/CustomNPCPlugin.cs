@@ -1,21 +1,16 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Streams;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
 using System.Timers;
 using CustomNPC.EventSystem;
 using CustomNPC.EventSystem.Events;
 using CustomNPC.Plugins;
 using Terraria;
 using TerrariaApi.Server;
+using TShockAPI;
 using Wolfje.Plugins.SEconomy;
 using Wolfje.Plugins.SEconomy.Journal;
-using TShockAPI;
-using TShockAPI.DB;
 
 namespace CustomNPC
 {
@@ -23,7 +18,7 @@ namespace CustomNPC
     public class CustomNPCPlugin : TerrariaPlugin
     {
         internal Random rand = new Random();
-        public CustomNPCConfig ConfigObj { get; set; }
+        public CustomNpcConfig ConfigObj { get; set; }
         private String SavePath = TShock.SavePath;
         internal static string filepath { get { return Path.Combine(TShock.SavePath, "customnpcinvasion.json"); } }
         public static bool UsingSEConomy { get; set; }
@@ -124,13 +119,14 @@ namespace CustomNPC
             Commands.ChatCommands.Add(new Command("customnpc.list", CommandListNPCS, "csmlist", "clist"));
             Commands.ChatCommands.Add(new Command("customnpc.invade", CommandInvade, "csminvade", "cinvade"));
             Commands.ChatCommands.Add(new Command("customnpc.info", CommandNPCInfo, "csminfo", "cinfo"));
-            ConfigObj = new CustomNPCConfig();
+            ConfigObj = new CustomNpcConfig();
             SetupConfig();
             NPCManager.CustomNPCInvasion.WaveSets = ConfigObj.WaveSets;
             mainLoop.Elapsed += mainLoop_Elapsed;
             mainLoop.Enabled = true;
         }
 
+        //TODO: Improve this implementation of Onchat
         void OnChat(ServerChatEventArgs args)
         {
             if (args.Handled)
@@ -185,6 +181,19 @@ namespace CustomNPC
             //Check if monster has been customized
             if (npcvar.customNPC.customNPCLoots != null)
             {
+
+                    for (int i = args.ItemId; i < Main.maxItems; )
+                    {
+                        float dX = Main.item[i].position.X - npcvar.mainNPC.Center.X;
+                        float dY = Main.item[i].position.Y - npcvar.mainNPC.Center.Y;
+
+                        if (Main.item[i].active && dX * dX + dY * dY <= 9 * 9 * 256f)
+                        {
+                            Main.item[i].active = false;
+                            TSPlayer.All.SendData(PacketTypes.ItemDrop, "", i);
+                        }
+                    }
+
                 foreach (CustomNPCLoot obj in npcvar.customNPC.customNPCLoots)
                 {
                     if (obj.itemDropChance >= 100 || NPCManager.Chance(obj.itemDropChance))
@@ -510,7 +519,7 @@ namespace CustomNPC
 
                 Console.WriteLine(player.Name + " Has Damaged " + npcvar.customNPC.customID + " in " + npcIndex);
 
-                var SEconReward = new Wolfje.Plugins.SEconomy.Money(npcvar.customNPC.SEconReward);
+                var SEconReward = new Money(npcvar.customNPC.SEconReward);
 
                 //This damage will kill the NPC.
                 if (npc.active && npc.life > 0 && damageDone >= npc.life)
@@ -536,34 +545,54 @@ namespace CustomNPC
 
                     Console.WriteLine(player.Name + " Has Killed " + npcvar.customNPC.customID + " in " + npcIndex);
 
-                    var economyPlayer = Wolfje.Plugins.SEconomy.SEconomyPlugin.Instance.GetBankAccount(TSPlayer.Server.User.ID);
+                    // TODO: Improve Seconomy Code if needed
+                    // My Implementation of Seconomy Rewards, it's bountys for the last player who hits and kills the enemy, Not sure if this is the best way to do this
+                    // Remove when a actual fix is provided.
 
-                    if (UsingSEConomy && economyPlayer.IsAccountEnabled)
+                    var economyPlayer = SEconomyPlugin.Instance.GetBankAccount(TSPlayer.Server.User.ID);
+
+                    if (npcvar != null)
                     {
-                        if (npcvar.customNPC.SEconReward > 0)
+                        if (!UsingSEConomy || !economyPlayer.IsAccountEnabled)
                         {
-                            IBankAccount Player = SEconomyPlugin.Instance.GetBankAccount(TSPlayer.Server.User.ID);
-                            SEconomyPlugin.Instance.WorldAccount.TransferToAsync(Player, SEconReward, BankAccountTransferOptions.AnnounceToReceiver, npcvar.customNPC.customName + " Bountie", "Custom Npc Kill");
-                            SEconReward = 0;
+                            if (!economyPlayer.IsAccountEnabled)
+                            {
+                                TShock.Log.Error("You cannot gain any bounty because your account is disabled.");
+                            }
                         }
-                    }
-                    else if (!economyPlayer.IsAccountEnabled)
-                    {
-                        TShock.Log.Error("You cannot gain any bounty because your account is disabled.");
+                        else
+                        {
+                            if (npcvar.customNPC.SEconReward > 0)
+                            {
+                                IBankAccount Player = SEconomyPlugin.Instance.GetBankAccount(TSPlayer.Server.User.ID);
+                                SEconomyPlugin.Instance.WorldAccount.TransferToAsync(Player, SEconReward,
+                                    BankAccountTransferOptions.AnnounceToReceiver,
+                                    npcvar.customNPC.customName + " Bountie",
+                                    "Custom Npc Kill");
+                                     SEconReward = 0;
+                            }
+                        }
                     }
 
                     npcvar.OnDeath();
+
+                    Console.WriteLine(npcvar.customNPC.customID + " is dead " + npcIndex);
 
                     if (npcvar != null && npcvar.isInvasion)
                     {
                         NPCManager.CustomNPCInvasion.WaveSize--;
                     }
 
-                    NPCManager.NPCs[npcIndex] = null;
-                    npcvar = null;
-                    npcvar.customNPC = null;
+                    // TODO: FIX Events hooking onto normal monsters
+                    // to reproduce hit one monster that's custom then hit a normal monster, this event issue must be fixed for ALL Events!
+                    // Attempt to fix events hooking into NORMAL NPCS
+                    // Remove when a actual fix is provided.
 
-                    Console.WriteLine(npcvar.customNPC.customID + " is dead " + npcIndex);
+                    if (npcvar != null)
+                    {
+                        NPCManager.NPCs[npcIndex] = null;
+                        if (npcvar != null) npcvar.customNPC = null;
+                    }              
                 }
             }
         }
@@ -742,6 +771,7 @@ namespace CustomNPC
                                             target = player;
                                             //Set npcs target to the player its shooting at
                                             obj.mainNPC.target = player.Index;
+
                                             //Break since no need to find another target
                                             break;
                                         }
@@ -815,10 +845,8 @@ namespace CustomNPC
 
                 proj.friendly = false;
                 proj.hostile = true;
+                proj.ownerHitCheck = true;
                 proj.npcProj = true;
-                proj.StatusNPC(255);
-                proj.StatusPvP(1);
-                proj.StatusPlayer(0);
 
                 // send projectile as a packet
                 NetMessage.SendData(27, -1, -1, string.Empty, projectileIndex, 0f, 0f, 0f, 0, 0, 0);
@@ -884,8 +912,8 @@ namespace CustomNPC
             {
                 if (File.Exists(filepath))
                 {
-                    ConfigObj = new CustomNPCConfig();
-                    ConfigObj = CustomNPCConfig.Read(filepath);
+                    ConfigObj = new CustomNpcConfig();
+                    ConfigObj = CustomNpcConfig.Read(filepath);
                     return;
                 }
                 else
@@ -917,8 +945,8 @@ namespace CustomNPC
             {
                 if (File.Exists(filepath))
                 {
-                    ConfigObj = new CustomNPCConfig();                  
-                    ConfigObj = CustomNPCConfig.Read(filepath);
+                    ConfigObj = new CustomNpcConfig();                  
+                    ConfigObj = CustomNpcConfig.Read(filepath);
                     return;
                 }
                 else

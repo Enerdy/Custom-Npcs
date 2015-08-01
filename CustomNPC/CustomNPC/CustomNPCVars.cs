@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TShockAPI.DB;
-using TShockAPI;
 using Terraria;
+using TShockAPI;
+using TShockAPI.DB;
 
 namespace CustomNPC
 {
@@ -13,7 +11,7 @@ namespace CustomNPC
     {
         public CustomNPCDefinition customNPC { get; set; }
         public DateTime[] lastAttemptedProjectile { get; set; }
-        public string customID { get { return customNPC.customID;  } }
+        public string customID { get { return customNPC.customID;  } }            // TODO: Added to try to debug the event attaching issue remove after it's fixed
         public bool overrideBaseNPCLoot { get { return customNPC.overrideBaseNPCLoot; } } // used for debuging default loot droping regardless if this is true or false.
         public bool isDead { get; set; }
         public bool isUncounted { get; set; }
@@ -186,7 +184,11 @@ namespace CustomNPC
 
             postTransform();
 
+            // TODO: FIX This issue in a way where it will cause no side effects!
             //Temp Fix for projectiles not attaching to transformations, some one else should redo this in a better way..
+            // How to reproduce introduce a projectile list for a transformed monster and have the base monster have no custom projectiles
+            // When monster A transforms into Monster B it will not fire Monster B's Projectiles.
+
             DateTime[] dt = null;
             if (npcdef.customProjectiles != null)
             {

@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Security.Permissions;
 using CustomNPC.EventSystem;
 using TerrariaApi.Server;
-using TShockAPI;
 
 namespace CustomNPC.Plugins
 {

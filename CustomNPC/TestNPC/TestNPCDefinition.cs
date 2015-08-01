@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using CustomNPC;
 
 namespace TestNPC
@@ -24,7 +20,7 @@ namespace TestNPC
             //Collision check = whether to check if it the projectile will collide with a tile before firing
             //ai0 ai1 = projectile ai's - don't use unless you know what these does (does different things depending on different projectiles)
             //Example of 3 different Shot Tile methods new ShotTile(x, y) - relative to centre of the Player, where positive values for x is down, and postive values for y is right
-            customProjectiles.Add(new CustomNPCProjectiles(180, new List<ShotTile>() { ShotTile.Middle }, 10, 250, true, 100));
+            customProjectiles.Add(new CustomNPCProjectiles(180, new List<ShotTile>() { ShotTile.Middle }, 10, 250, true));
             customProjectiles.Add(new CustomNPCProjectiles(257, new List<ShotTile>() { new ShotTile(-100, 0) }, 170, 2000, false, 10));
             customProjectiles.Add(new CustomNPCProjectiles(174, new List<ShotTile>() { ShotTile.Middle, ShotTile.MiddleLeft, ShotTile.MiddleRight }, 70, 600, true, 50));
 

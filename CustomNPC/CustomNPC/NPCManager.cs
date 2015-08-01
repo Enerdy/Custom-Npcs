@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Timers;
 using Terraria;
 using TShockAPI;
@@ -72,7 +70,7 @@ namespace CustomNPC
                         if ((DateTime.Now - lastSpawnAttempt).TotalSeconds < obj.Item2.spawnRate) continue;
 
                         //Check spawn chance
-                        if (!NPCManager.Chance(obj.Item2.spawnChance)) continue;
+                        if (!Chance(obj.Item2.spawnChance)) continue;
                             
                         //Check spawn method
                         if (obj.Item2.useTerrariaSpawn)
@@ -136,7 +134,7 @@ namespace CustomNPC
 
                         Data.LastSpawnAttempt[customnpc.customID] = DateTime.Now;
 
-                        if (!NPCManager.Chance(obj2.Item2.spawnChance)) continue;
+                        if (!Chance(obj2.Item2.spawnChance)) continue;
                         
                         int spawnX;
                         int spawnY;
@@ -568,8 +566,8 @@ namespace CustomNPC
             private static Waves CurrentWave { get; set; }
             private static int CurrentWaveIndex { get; set; }
             private static int waveSize { get; set; }
-            private static bool spawnedBosses = false;
-            public static bool invasionStarted = false;
+            private static bool spawnedBosses;
+            public static bool invasionStarted;
             public static int WaveSize
             {
                 get { return waveSize; }
@@ -683,7 +681,7 @@ namespace CustomNPC
                     }
 
                     //Get NPC definition
-                    var npcdef = NPCManager.Data.GetNPCbyID(minion.MobID);
+                    var npcdef = Data.GetNPCbyID(minion.MobID);
                     if (npcdef == null)
                     {
                         TShock.Log.ConsoleError("[CustomNPC]: Error! The custom mob id \"{0}\" does not exist!", minion.MobID);
@@ -691,7 +689,7 @@ namespace CustomNPC
                     }
 
                     //Check spawn conditions
-                    if (minion.SpawnConditions != SpawnConditions.None && NPCManager.CheckSpawnConditions(minion.SpawnConditions)) continue;
+                    if (minion.SpawnConditions != SpawnConditions.None && CheckSpawnConditions(minion.SpawnConditions)) continue;
 
                     SpawnMinion(spawnRegion, minion, npcdef, attempts);
                 }
@@ -709,7 +707,7 @@ namespace CustomNPC
                 //Loop through players
                 foreach (TSPlayer player in TShock.Players)
                 {
-                    if (player == null || player.Dead || !player.Active || !NPCManager.Chance(minion.Chance)) continue;
+                    if (player == null || player.Dead || !player.Active || !Chance(minion.Chance)) continue;
 
                     //Check if the minions can spawn anywhere, or if we need to check if players see them.
                     if (!CurrentWave.SpawnAnywhere)
@@ -730,14 +728,14 @@ namespace CustomNPC
 
                     if (npcdef.maxSpawns != -1 && npcdef.currSpawnsVar >= npcdef.maxSpawns)
                     {
-                        npcdef.currSpawnsVar = NPCManager.AliveCount(npcdef.customID);
+                        npcdef.currSpawnsVar = AliveCount(npcdef.customID);
                         continue;
                     }
                     else if (npcdef.maxSpawns == -1)
                     {
                         for (int i = 0; mobid == -1 && i < attempts; i++)
                         {
-                            mobid = NPCManager.SpawnMobAroundPlayer(player, npcdef);
+                            mobid = SpawnMobAroundPlayer(player, npcdef);
                             npcdef.currSpawnsVar++;
                         }
                     }
@@ -745,14 +743,14 @@ namespace CustomNPC
                         //Try max attempts times. This gives attempts*50 spawn attempts at random positions.
                         for (int i = 0; mobid == -1 && i < attempts; i++)
                         {
-                            mobid = NPCManager.SpawnMobAroundPlayer(player, npcdef);
+                            mobid = SpawnMobAroundPlayer(player, npcdef);
                             npcdef.currSpawnsVar++;
                         }
 
                     //Spawning failed :(
                     if (mobid == -1) continue;
 
-                    NPCManager.GetCustomNPCByIndex(mobid).isInvasion = true;
+                    GetCustomNPCByIndex(mobid).isInvasion = true;
                 }
 
             }

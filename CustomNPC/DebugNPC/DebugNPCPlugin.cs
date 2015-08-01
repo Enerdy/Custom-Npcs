@@ -1,14 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using CustomNPC;
 using CustomNPC.EventSystem;
 using CustomNPC.EventSystem.Events;
 using CustomNPC.Plugins;
-using Terraria;
 
 namespace DebugNPC
 {
@@ -41,9 +35,10 @@ namespace DebugNPC
             Register.RegisterHandler<NpcUpdateEvent>(this, OnNpcUpdate, EventType.NpcUpdate);
             Register.RegisterHandler<NpcKilledEvent>(this, OnNpcKill, EventType.NpcKill);
 
-            Definitions.Add(new DebugEventsNPCDefinition());
-            Definitions.Add(new DebugLootNPCDefinition());
+            Definitions.Add(new DebugEventsNpcDefinition());
+            Definitions.Add(new DebugLootNpcDefinition());
             Definitions.Add(new DebugDefence());
+            Definitions.Add(new DebugProjHostile());
             Definitions.Add(new DebugTransform());
             Definitions.Add(new DebugTransformed());
         }

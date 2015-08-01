@@ -1,23 +1,24 @@
-﻿using CustomNPC;
+﻿using System.Collections.Generic;
+using CustomNPC;
 
 namespace DebugNPC
 {
-    public sealed class DebugDefence : CustomNPCDefinition
+    public sealed class DebugProjHostile : CustomNPCDefinition
     {
-        public DebugDefence()
-            : base(1)
+        public DebugProjHostile()
+            : base(3)
         {
-
+            customProjectiles.Add(new CustomNPCProjectiles(2, new List<ShotTile>() { ShotTile.Middle }, 10, 250, true, 100));
         }
 
         public override string customID
         {
-            get { return "DEBUGDEF"; }
+            get { return "DEBUGPROJH"; }
         }
 
         public override string customName
         {
-            get { return "Slime with 100 Defence"; }
+            get { return "Friendly player projectile turned hostile (test)"; }
         }
 
         public override bool overrideBaseNPCLoot
