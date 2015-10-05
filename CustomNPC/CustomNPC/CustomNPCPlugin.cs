@@ -14,7 +14,7 @@ using Wolfje.Plugins.SEconomy.Journal;
 
 namespace CustomNPC
 {
-    [ApiVersion(1, 20)]
+    [ApiVersion(1, 21)]
     public class CustomNPCPlugin : TerrariaPlugin
     {
         internal Random rand = new Random();
