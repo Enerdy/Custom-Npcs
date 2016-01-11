@@ -38,14 +38,6 @@ namespace DebugNPC
             }
         }
 
-        public override Color customSpawnMessageColor
-        {
-            get
-            {
-                return Color.Red;
-            }
-        }
-
         public override string customName
         {
             get { return "DEBUG TRANSFORMED"; }

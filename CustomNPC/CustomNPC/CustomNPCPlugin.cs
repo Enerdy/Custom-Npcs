@@ -11,21 +11,21 @@ using CustomNPC.EventSystem;
 using CustomNPC.EventSystem.Events;
 using CustomNPC.Plugins;
 using Terraria;
-using TerrariaApi.Server;
+using OTA;
+using OTA.Plugin;
+using OTA.Command;
 using Wolfje.Plugins.SEconomy;
 using Wolfje.Plugins.SEconomy.Journal;
-using TShockAPI;
-using TShockAPI.DB;
 
 namespace CustomNPC
 {
-    [ApiVersion(1, 22)]
-    public class CustomNPCPlugin : TerrariaPlugin
+    [OTAVersion(1, 0)]
+    public class CustomNPCPlugin : BasePlugin
     {
         internal Random rand = new Random();
         public CustomNPCConfig ConfigObj { get; set; }
-        private String SavePath = TShock.SavePath;
-        internal static string filepath { get { return Path.Combine(TShock.SavePath, "customnpcinvasion.json"); } }
+       // private String SavePath = OTA.savepath;
+       // internal static string filepath { get { return Path.Combine(TShock.SavePath, "customnpcinvasion.json"); } }
         public static bool UsingSEConomy { get; set; }
 
         //16.66 milliseconds for 1/60th of a second.
@@ -43,19 +43,23 @@ namespace CustomNPC
             UsingSEConomy = File.Exists(Path.Combine("ServerPlugins", "Wolfje.Plugins.SEconomy.dll"));
             eventManager = new EventManager();
             definitionManager = new DefinitionManager();
+            this.Version = "1.5";
+            this.Author = "IcyPhoneix and Pychnight";
+            this.Name = "Custom NPCS";
+            this.Description = "This plugin Allows Custom Monsters";
 
 #if USE_APPDOMAIN
             pluginDomain = CreateNewPluginDomain();
 #endif
             ////pluginDomain.AssemblyResolve += PluginDomain_OnAssemblyResolve;
-/*
-            foreach (AssemblyName asm in Assembly.GetExecutingAssembly().GetReferencedAssemblies())
-            {
-                pluginDomain.Load(asm);
-            }
+            /*
+                        foreach (AssemblyName asm in Assembly.GetExecutingAssembly().GetReferencedAssemblies())
+                        {
+                            pluginDomain.Load(asm);
+                        }
 
-            pluginDomain.Load(Assembly.GetExecutingAssembly().GetName());
-*/
+                        pluginDomain.Load(Assembly.GetExecutingAssembly().GetName());
+            */
 
 #if USE_APPDOMAIN
             pluginManager = pluginDomain.CreateInstanceAndUnwrap<PluginManager<NPCPlugin>>(eventManager, definitionManager);
@@ -64,27 +68,7 @@ namespace CustomNPC
 #endif
         }
 
-        public override string Author
-        {
-            get { return "IcyGaming(v1.0), Taeir(v1.1), Pychnight(v1.2 & v1.3)"; }
-        }
-
-        public override string Description
-        {
-            get { return "Create Custom NPCs"; }
-        }
-
-        public override string Name
-        {
-            get { return "CustomNPC"; }
-        }
-
-        public override Version Version
-        {
-            get { return new Version("1.3"); }
-        }
-
-        public override void Initialize()
+        public override void Initialized(object state)
         {
 #if USE_APPDOMAIN
             pluginManager.Load(pluginDomain);
@@ -97,15 +81,161 @@ namespace CustomNPC
             }
 
             NPCManager.LoadFrom(definitionManager);
+        }
 
-            ServerApi.Hooks.GameInitialize.Register(this, OnInitialize);
+            [Hook(HookOrder.FIRST)]
+        void GameInitialize(ref HookContext ctx, ref HookArgs.GameInitialize args)
+        {  
+            Core.AddCommand("CSM")
+                   .WithDescription("Spawns Custom Monsters")
+                   .WithHelpText("<ID> <Amount> - another player")
+                   .WithPermissionNode("customnpc.spawn")
+                   .Calls(this.CommandSpawnNPC);
 
-            //one OnUpdate is needed for updating mob positioning
-            ServerApi.Hooks.GameUpdate.Register(this, OnUpdate);
-            ServerApi.Hooks.NpcSpawn.Register(this, OnNPCSpawn);
-            ServerApi.Hooks.NpcLootDrop.Register(this, OnItemDrop);
-            ServerApi.Hooks.ServerChat.Register(this, OnChat);
-            ServerApi.Hooks.NetGetData.Register(this, OnGetData);
+            Core.AddCommand("csminvadereload")
+                    .WithDescription("Reloads Custom Invasion File")
+                    .WithHelpText("Will reload custom invasions")
+                    .WithPermissionNode("customnpc.invadereload")
+                    .Calls(this.CommandIReload);
+
+            Core.AddCommand("csmlist")
+                    .WithDescription("Lists all Custom Npcs Installed on the server")
+                    .WithHelpText("<Page X to Y (1-100)")
+                    .WithPermissionNode("tdsm.tp")
+                    .Calls(this.Teleport);
+
+            Core.AddCommand("csminfo")
+                    .WithDescription("Displays stats of the specified custom monster")
+                    .WithHelpText("<Custom ID> - Input Custom ID")
+                    .WithPermissionNode("customnpc.info")
+                    .Calls(this.CommandNPCInfo);
+
+            ConfigObj = new CustomNPCConfig();
+            SetupConfig();
+            NPCManager.CustomNPCInvasion.WaveSets = ConfigObj.WaveSets;
+            mainLoop.Elapsed += mainLoop_Elapsed;
+            mainLoop.Enabled = true;
+        }
+        //    ServerApi.Hooks.GameInitialize.Register(this, OnInitialize);
+
+        //one OnUpdate is needed for updating mob positioning
+
+        void GameUpdate(ref HookContext ctx, ref HookArgs.GameUpdate args)
+        {
+            //Update all NPCs with custom AI
+            CustomNPCUpdate(true, false);
+        }
+
+        void OnNPCSpawn(ref HookContext ctx, ref HookArgs.NpcSpawn args)
+        {
+            //If the id falls outside the possible range, we can return.
+            if (args.NpcId < 0 || args.NpcId >= 200) return;
+
+            //This NPC is custom and not dead.
+            if (NPCManager.NPCs[args.NpcId] != null && !NPCManager.NPCs[args.NpcId].isDead) return;
+
+            NPC spawned = Main.npc[args.NpcId];
+
+            //DEBUG
+            //OTA.Logging.ConsoleInfo("DEBUG [NPCSpawn] NPCIndex {0}", args.NpcId);
+            //DEBUG
+
+            foreach (CustomNPCDefinition customnpc in NPCManager.Data.CustomNPCs.Values)
+            {
+                if (!customnpc.isReplacement || spawned.netID != customnpc.customBase.netID) continue;
+
+                DateTime[] dt = null;
+                if (customnpc.customProjectiles != null)
+                {
+                    dt = Enumerable.Repeat(DateTime.Now, customnpc.customProjectiles.Count).ToArray();
+                }
+                NPCManager.NPCs[spawned.whoAmI] = new CustomNPCVars(customnpc, dt, spawned);
+                NPCManager.Data.ConvertNPCToCustom(spawned.whoAmI, customnpc);
+
+                break;
+            }
+        }
+
+        void NpcLootDrop(ref HookContext ctx, ref HookArgs.NpcDropLoot args)
+        {
+            CustomNPCVars npcvar = NPCManager.GetCustomNPCByIndex(args.NpcArrayIndex);
+            if (npcvar == null || npcvar.droppedLoot) return;
+
+            npcvar.isDead = true;
+            npcvar.droppedLoot = true;
+            ctx.SetResult(HookResult.IGNORE);
+            //ctx.Result.Equals(npcvar.customNPC.overrideBaseNPCLoot);
+
+            //Check if monster has been customized
+            if (npcvar.customNPC.customNPCLoots != null)
+            {
+                foreach (CustomNPCLoot obj in npcvar.customNPC.customNPCLoots)
+                {
+                    if (obj.itemDropChance >= 100 || NPCManager.Chance(obj.itemDropChance))
+                    {
+                        int pre = 0;
+                        if (obj.itemPrefix != null)
+                        {
+                            pre = obj.itemPrefix[rand.Next(obj.itemPrefix.Count)];
+                        }
+
+                        Item.NewItem((int)npcvar.mainNPC.position.X, (int)npcvar.mainNPC.position.Y, npcvar.mainNPC.width, npcvar.mainNPC.height, obj.itemID, obj.itemStack, false, pre, false);
+                    }
+                }
+            }
+        }
+
+        //Not Correct! Needs improvement
+        // Missing Hook?
+        void NetGetData(ref HookContext ctx, ref HookArgs)
+        {
+            //Ignore cancelled events
+            if (args.Handled) return;
+
+            PacketTypes type = args.MsgID;
+
+            //Only handle NPC strike
+            if (type != PacketTypes.NpcStrike) return;
+
+            //Swap out for OTA code, that does the same thing
+            TSPlayer player = TShock.Players[args.Msg.whoAmI];
+
+            if (player == null || !player.ConnectionAlive) return;
+
+            int npcIndex;
+            int damage;
+            float knockback;
+            byte direction;
+            bool critical;
+            using (var data = new MemoryStream(args.Msg.readBuffer, args.Index, args.Length))
+            {
+                npcIndex = data.ReadInt16();
+                damage = data.ReadInt16();
+                knockback = data.ReadSingle();
+                direction = data.ReadInt8();
+                critical = data.ReadBoolean();
+            }
+
+            CustomNPCVars npcvar = NPCManager.NPCs[npcIndex];
+            if (npcvar != null)
+            {
+                OnNpcDamaged(player, npcIndex, damage, knockback, direction, critical);
+            }
+        }
+
+
+        //Missing Hook! OTA
+
+        //void ServerChat(ref HookContext ctx, ref HookArgs.s args);
+        //{
+        //}
+
+
+        //ServerApi.Hooks.GameUpdate.Register(this, OnUpdate);
+        //ServerApi.Hooks.NpcSpawn.Register(this, OnNPCSpawn);
+        // ServerApi.Hooks.NpcLootDrop.Register(this, OnItemDrop);
+        //ServerApi.Hooks.ServerChat.Register(this, OnChat);
+        //ServerApi.Hooks.NetGetData.Register(this, OnGetData);
         }
 
 
@@ -117,20 +247,24 @@ namespace CustomNPC
         }
 #endif
 
-        private void OnInitialize(EventArgs args)
+    /*
+        private void OnInitlized(EventArgs args)
         {
-            Commands.ChatCommands.Add(new Command("customnpc.spawn", CommandSpawnNPC, "csm"));
-            Commands.ChatCommands.Add(new Command("customnpc.invadereload", CommandIReload, "csminvadereload"));
-            Commands.ChatCommands.Add(new Command("customnpc.list", CommandListNPCS, "csmlist", "clist"));
-            Commands.ChatCommands.Add(new Command("customnpc.invade", CommandInvade, "csminvade", "cinvade"));
-            Commands.ChatCommands.Add(new Command("customnpc.info", CommandNPCInfo, "csminfo", "cinfo"));
-            ConfigObj = new CustomNPCConfig();
+        Commands.ChatCommands.Add(new Command("customnpc.spawn", CommandSpawnNPC, "csm"));
+        Commands.ChatCommands.Add(new Command("customnpc.invadereload", CommandIReload, "csminvadereload"));
+        Commands.ChatCommands.Add(new Command("customnpc.list", CommandListNPCS, "csmlist", "clist"));
+        Commands.ChatCommands.Add(new Command("customnpc.invade", CommandInvade, "csminvade", "cinvade"));
+        Commands.ChatCommands.Add(new Command("customnpc.info", CommandNPCInfo, "csminfo", "cinfo"))
+
+        ConfigObj = new CustomNPCConfig();
             SetupConfig();
             NPCManager.CustomNPCInvasion.WaveSets = ConfigObj.WaveSets;
             mainLoop.Elapsed += mainLoop_Elapsed;
             mainLoop.Enabled = true;
         }
+    */
 
+    /*
         void OnChat(ServerChatEventArgs args)
         {
             if (args.Handled)
@@ -168,38 +302,7 @@ namespace CustomNPC
 
             eventManager.InvokeHandler(ServerChatEventArgs, EventType.ServerChat);
         }
-
-        /// <summary>
-        /// For Custom Loot
-        /// </summary>
-        /// <param name="args"></param>
-        private void OnItemDrop(NpcLootDropEventArgs args)
-        {
-            CustomNPCVars npcvar = NPCManager.GetCustomNPCByIndex(args.NpcArrayIndex);         
-            if (npcvar == null || npcvar.droppedLoot) return;
-
-            npcvar.isDead = true;
-            npcvar.droppedLoot = true;
-            args.Handled = npcvar.customNPC.overrideBaseNPCLoot;
-
-            //Check if monster has been customized
-            if (npcvar.customNPC.customNPCLoots != null)
-            {
-                foreach (CustomNPCLoot obj in npcvar.customNPC.customNPCLoots)
-                {
-                    if (obj.itemDropChance >= 100 || NPCManager.Chance(obj.itemDropChance))
-                    {
-                        int pre = 0;
-                        if (obj.itemPrefix != null)
-                        {
-                            pre = obj.itemPrefix[rand.Next(obj.itemPrefix.Count)];
-                        }
-
-                        Item.NewItem((int)npcvar.mainNPC.position.X, (int)npcvar.mainNPC.position.Y, npcvar.mainNPC.width, npcvar.mainNPC.height, obj.itemID, obj.itemStack, false, pre, false);
-                    }
-                }
-            }
-        }
+        */
 
         /// <summary>
         /// Spawn custom npc using /csm &lt;id&gt; [amount] [&lt;x&gt; &lt;y&gt;]
@@ -401,47 +504,7 @@ namespace CustomNPC
             args.Player.SendInfoMessage("Alive: {0} / {1}", cdef.currSpawnsVar, TaeirUtil.ValOrNo(cdef.maxSpawns, -1, "No Max"));
         }
 
-        /// <summary>
-        /// Called every time the server ticks.
-        /// Adds Custom Monster to array for replacement
-        /// </summary>
-        /// <param name="args"></param>
-        private void OnUpdate(EventArgs args)
-        {
-            //Update all NPCs with custom AI
-            CustomNPCUpdate(true, false);
-        }
-
-        private void OnNPCSpawn(NpcSpawnEventArgs args)
-        {
-            //If the id falls outside the possible range, we can return.
-            if (args.NpcId < 0 || args.NpcId >= 200) return;
-
-            //This NPC is custom and not dead.
-            if (NPCManager.NPCs[args.NpcId] != null && !NPCManager.NPCs[args.NpcId].isDead) return;
-
-            NPC spawned = Main.npc[args.NpcId];
-
-            //DEBUG
-            TShock.Log.ConsoleInfo("DEBUG [NPCSpawn] NPCIndex {0}", args.NpcId);
-            //DEBUG
-
-            foreach (CustomNPCDefinition customnpc in NPCManager.Data.CustomNPCs.Values)
-            {
-                if (!customnpc.isReplacement || spawned.netID != customnpc.customBase.netID) continue;
-
-                DateTime[] dt = null;
-                if (customnpc.customProjectiles != null)
-                {
-                    dt = Enumerable.Repeat(DateTime.Now, customnpc.customProjectiles.Count).ToArray();
-                }
-                NPCManager.NPCs[spawned.whoAmI] = new CustomNPCVars(customnpc, dt, spawned);
-                NPCManager.Data.ConvertNPCToCustom(spawned.whoAmI, customnpc);
-
-                break;
-            }
-        }
-
+    /*
         private void OnGetData(GetDataEventArgs args)
         {
             //Ignore cancelled events
@@ -475,10 +538,11 @@ namespace CustomNPC
                 OnNpcDamaged(player, npcIndex, damage, knockback, direction, critical);
             }
         }
+        */
 
         #region Event Dispatchers
 
-        private void OnNpcDamaged(TSPlayer player, int npcIndex, int damage, float knockback, byte direction, bool critical)
+        private void OnNpcDamaged( Improve ME! , int npcIndex, int damage, float knockback, byte direction, bool critical)
         {
             CustomNPCVars npcvar = NPCManager.NPCs[npcIndex];
             if (npcvar != null)
@@ -531,6 +595,8 @@ namespace CustomNPC
 
                     Console.WriteLine(player.Name + " Has Killed " + npcvar.customNPC.customID + " in " + npcIndex);
 
+                // Seconomy Feature! Requires Seconomy to function.
+                /*
                     if (UsingSEConomy == true)
                     {
                         var economyPlayer = Wolfje.Plugins.SEconomy.SEconomyPlugin.Instance.GetBankAccount(TSPlayer.Server.User.ID);
@@ -551,6 +617,7 @@ namespace CustomNPC
                             TShock.Log.Error("You cannot gain any bounty because your account is disabled.");
                         }
                     }
+                    */
 
                     if (npcvar != null)
                     {
@@ -569,10 +636,10 @@ namespace CustomNPC
             }
         }
 
-        #endregion
+    #endregion
 
-        protected override void Dispose(bool disposing)
-        {
+    protected virtual void Disposed(object state)
+    {
             if (disposing)
             {
                 pluginManager.Unload();
