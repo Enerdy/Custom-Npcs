@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CustomNPC
+namespace CustomNPCS
 {
-    public class CustomNPCProjectiles
+    public class CustomProjectiles
     {
         public int projectileID { get; set; }
         public List<ShotTile> projectileShotTiles { get; set; }
@@ -18,7 +18,7 @@ namespace CustomNPC
         public float projectileAIParams2 { get; set; }
         public bool projectileLookForTarget { get; set; }
 
-        public CustomNPCProjectiles(int projectileid, List<ShotTile> projectileshottiles, int projectiledamage, int projectilefirerate, bool projectilelookfortarget = false, int projectilefirechance = 100, bool projectilecheckcollision = true, float projectileaiparams1 = 0f, float projectileaiparams2 = 0f)
+        public CustomProjectiles(int projectileid, List<ShotTile> projectileshottiles, int projectiledamage, int projectilefirerate, bool projectilelookfortarget = false, int projectilefirechance = 100, bool projectilecheckcollision = true, float projectileaiparams1 = 0f, float projectileaiparams2 = 0f)
         {
             projectileID = projectileid;
             projectileShotTiles = projectileshottiles;

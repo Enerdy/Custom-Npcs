@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Security.Permissions;
 
-namespace CustomNPC
+namespace CustomNPCS
 {
     public class DefinitionManager : MarshalByRefObject
     {
