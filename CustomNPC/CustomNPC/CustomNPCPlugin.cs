@@ -32,7 +32,7 @@ using Microsoft.Xna.Framework;
 namespace CustomNPC
 {
 	#if TShock
-    [ApiVersion(1, 22)]
+    [ApiVersion(1, 23)]
     public class CustomNPCPlugin : TerrariaPlugin
 
 #elif OTAPI
